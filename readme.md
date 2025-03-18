@@ -8,14 +8,10 @@ A scalable and personalized content recommendation microservice built with **Pyt
 
 1. [Overview](#overview)
 2. [Features](#features)
-3. [Architecture](#architecture)
+3. [Architecture & Workflow](#architecture--workflow)
 4. [Technologies Used](#technologies-used)
 5. [API Endpoints](#api-endpoints)
-6. [Database Schema](#database-schema)
-7. [Installation](#installation)
-8. [Usage](#usage)
-9. [Deployment](#deployment)
-10. [Future Improvements](#future-improvements)
+6. [Future Improvements](#future-improvements)
 
 ---
 
@@ -25,36 +21,55 @@ This microservice provides personalized content recommendations to users based o
 
 - **GenAI** models for embedding-based recommendations.
 - Scalable and conflict-free service architecture with clear separation of concerns.
-- Kafka for asynchronous event handling.
+- Kafka enables asynchronous communication, decoupling microservices for scalability and fault tolerance.
 
 ### **Key Components**
 
-1. **UserService**: Manages user embeddings, interactions, and real-time recommendations.
-2. **FeedbackService**: Logs user feedback and balances user interests.
-3. **ContentIngestService**: Processes and stores new content and metadata.
+**1. UserService**: Manages user embeddings, interactions, and real-time recommendations.
+**2. ContentService**: Processes new articles, updates metadata, and tracks user feedback.
 
 ---
 
 ## **Features**
 
 - Personalized recommendations based on user interests.
-- Embedding-based categorization and retrieval using **Facebook BART Large MNLI**.
+- Category classification using **Facebook BART Large MNLI**.
 - Asynchronous updates via **Kafka**.
 - Optimized for scalability, maintainability, and conflict-free operations.
 - Supports real-time feedback to refine recommendations.
 
 ---
 
-## **Architecture**
+## **Architecture & Workflow**
 
-![Architecture Diagram Placeholder](#) _(Include or reference a diagram if available)_
+### **Microservices Overview**
 
-### **Workflow Highlights**
+**1️. UserService (Handles User Interests & Recommendations)**
 
-- **UserService** exclusively manages embeddings with **Qdrant**.
-- **Redis** caches category embeddings for fast user embedding computation.
-- **MongoDB** stores user preferences and content metadata.
-- Smart embedding updates triggered by **ContentIngestService**.
+- Stores and updates content embeddings in **Qdrant** for personalized recommendations.
+- Uses **Redis** to cache category embeddings, ensuring fast computation of user embedding based on user-interest.
+- Exposes an API to **log user interests** and **retrieve personalized recommendations**.
+
+**2️. ContentService (Handles Content Processing & Feedback Tracking)**
+
+- Processes new articles, categorizes them using **GenAI (Facebook BART Large MNLI)**, and stores metadata in **MongoDB**.
+- Tracks **interaction metrics** (likes, shares, clicks) and updates content metadata.
+- Exposes APIs to process new content and handle metadata updates.
+- **Produces Kafka events**:
+  - `embedding_update_required` → Triggers embedding updates when significant content changes.
+  - `balance_user_interest` → Sends computed user interest adjustments to **UserService**.
+- **ContentService API Endpoints:**
+  - `POST /content/process` → Processes new content and categorizes it.
+  - `POST /content/process_metadata_update` → Logs interaction metrics and updates metadata.
+
+### **Workflow Summary**
+
+- A **new article** is ingested → **ContentService** processes and categorizes it using GenAI.
+- **Content metadata is updated** → Triggers `embedding_update_required` for **UserService** to keep latest relevant recommendations.
+- **Users interact** with content (likes, shares, clicks) → **ContentService** logs feedback & computes user interest weights.
+- **ContentService sends `balance_user_interest` event** → **UserService** updates user interest.
+- **User requests recommendations** → **UserService** retrieves top results from **Qdrant** using updated embeddings.
+- **Kafka ensures smooth, asynchronous communication** between services.
 
 ---
 
@@ -62,6 +77,8 @@ This microservice provides personalized content recommendations to users based o
 
 - **Python** & **FastAPI**: Backend development.
 - **Facebook BART Large MNLI**: GenAI model for content categorization.
+-**all-MiniLM-L6-v2, sentence_transformers**: For generating embeddings.
+-**PCA**: For reducing embedding dimensions for predefined categories
 - **Kafka**: Event-driven architecture.
 - **Qdrant**: Embedding storage and retrieval.
 - **Redis**: In-memory caching for category embeddings.
@@ -73,164 +90,28 @@ This microservice provides personalized content recommendations to users based o
 
 ### 1. **User Interest Submission**
 
-**POST** `/api/user/interests`  
-_Submits user interests and updates their embeddings._
+**POST** `/users/log-interest`
+_Submits user interests._
 
 ### 2. **Content Recommendation Retrieval**
 
-**GET** `/api/recommendations`  
+**GET** `/recommend`
 _Returns personalized content recommendations._
 
-### 3. **Feedback Collection**
+### 3. **Content Processing**
 
-**POST** `/api/user/feedback`  
-_Logs feedback and adjusts user interests._
+**POST** `/content/process`
+_Processes new content and categorizes it._
 
----
+### 4. **Metadata Update Processing**
 
-## **Database Schema**
-
-### **Collections and Tables**
-
-1. **User Interests**
-   - UserID, Preferences, Embeddings, Interaction History
-2. **Content Metadata**
-   - ContentID, Title, Description, Category, Embeddings
-3. **Feedback Logs**
-   - UserID, FeedbackType, ContentID, Timestamp
-
-### **Indexes**
-
-- Use **FAISS** or **Annoy** for faster vector similarity searches on embeddings.
+**POST** `/content/process_metadata_update`
+_Logs interaction metrics and updates content metadata._
 
 ---
 
-## **Installation**
+## **Future Improvements**
 
-### **Prerequisites**
-
-- Python 3.12+
-- Docker (optional, for containerized deployment)
-
-### **Steps**
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-repo-url.git
-   cd content-recommendation-microservice
-   ```
-## **Deployment**
-   version: '3.8'
-
-## Docker Compose Configuration
-
-Below is the Docker Compose configuration for deploying the microservices:
-
-```yaml
-version: '3.8'
-
-services:
-  user-service:
-    build: ./user-service
-    ports:
-      - "8001:8000"
-    env_file:
-      - ./user-service/.env
-    depends_on:
-      - mongodb
-      - qdrant
-      - kafka
-      - redis
-    networks:
-      - microservices_network
-
-  feedback-service:
-    build: ./feedback-service
-    ports:
-      - "8002:8000"
-    env_file:
-      - ./feedback-service/.env
-    depends_on:
-      - mongodb
-      - kafka
-    networks:
-      - microservices_network
-
-  content-service:
-    build: ./content-service
-    ports:
-      - "8003:8000"
-    env_file:
-      - ./content-service/.env
-    depends_on:
-      - kafka
-    networks:
-      - microservices_network
-
-  # mongodb:
-  #   image: mongo:6.0
-  #   container_name: mongodb
-  #   restart: always
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - mongo_data:/data/db
-  #   networks:
-  #     - microservices_network
-
-  qdrant:
-    image: qdrant/qdrant
-    container_name: qdrant
-    restart: always
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_storage:/qdrant/storage
-    networks:
-      - microservices_network
-  
-  redis:
-    image: redis:latest
-    container_name: redis
-    restart: always
-    ports:
-      - "6379:6379"
-    networks:
-      - microservices_network
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper
-    restart: always
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-    networks:
-      - microservices_network
-
-  kafka:
-    image: confluentinc/cp-kafka
-    container_name: kafka
-    restart: always
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    depends_on:
-      - zookeeper
-    networks:
-      - microservices_network
-
-networks:
-  microservices_network:
-    driver: bridge
-
-volumes:
-  qdrant_storage:
-  mongo_data:
-
+- Enhance recommendation diversity with **multi-modal embeddings**.
+- Implement **A/B testing** for better personalization.
+- Optimize feedback loop using **reinforcement learning**.
