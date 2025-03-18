@@ -4,24 +4,35 @@ from shared_libs.utils.kafka_consumer import KafkaEventConsumer
 from db.qdrant import qdrant_db
 from services.generate_embedding import embedding_service
 import uuid
-
+from services.user import user_service
 
 class UserServiceKafkaHandler:
     def __init__(self):
         self.embedding_service = embedding_service 
+        self.user_service = user_service
         self.embedding_update_consumer = KafkaEventConsumer(
             topic="embedding_update_required",
-            group_id="user-service-group"
+            group_id="user-service-group-1"
+        )
+        self.interest_update_consumer = KafkaEventConsumer(
+            topic="balance_user_interest",
+            group_id="user-service-group-2"
         )
 
     def start_listeners(self):
         logging.info("Starting Kafka listener for embedding_update_required")
-        listener_thread = threading.Thread(target=self.listen, daemon=True)
-        listener_thread.start()
+        listener_thread1 = threading.Thread(target=self.embedding_listener, daemon=True)
+        listener_thread1.start()
+        
+        listener_thread2 = threading.Thread(target=self.interest_balance_listener,daemon=True)
+        listener_thread2.start()
 
-    def listen(self):
+    def embedding_listener(self):
         self.embedding_update_consumer.listen(self.process_embedding_update)
-
+    
+    def interest_balance_listener(self):
+        self.interest_update_consumer.listen(self.user_service.process_interest_update)
+        
     def process_embedding_update(self, event):
         try:
             filtered_articles = event.get("filtered_articles", [])
