@@ -1,0 +1,85 @@
+# Python-related ignores
+__pycache__
+*.py[cod]
+*.so
+*.log
+*.sqlite3
+*.db
+venv/
+env/
+*.env
+.env.local
+*.DS_Store
+
+# FastAPI / Backend
+*.pid
+instance/
+config/settings_local.py
+config/__pycache__/
+
+# Dependencies
+poetry.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtualenv
+.venv/
+env/
+venv.bak/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Logs & Debugging
+logs/
+*.log
+nohup.out
+
+# Cache & Temp files
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.temp
+*.cache
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# Database / Storage
+*.sqlite3
+*.db
+*.pkl
+data/
+dump.rdb 
+qdrant_data/
+media/
+
+# Kafka & Message Brokers
+kafka-logs/
+kafka-data/
+zookeeper-data/
+*.kafka
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Docker
+docker-compose.override.yml
+.docker/
+.dockerignore
+*.dockerfile
+
+# Misc
+*.out
+
+docker-compose.yml
+dockerfile
+render.yaml
+README.md
+feedback_service
