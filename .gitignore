@@ -48,38 +48,12 @@ nohup.out
 .coverage
 htmlcov/
 
-# Database / Storage
-*.sqlite3
-*.db
-*.pkl
-data/
-dump.rdb 
-qdrant_data/
-media/
-
-# Kafka & Message Brokers
-kafka-logs/
-kafka-data/
-zookeeper-data/
-*.kafka
-
 # Build artifacts
 dist/
 build/
 *.tar.gz
 *.zip
 
-# Docker
-docker-compose.override.yml
-.docker/
-.dockerignore
-*.dockerfile
 
 # Misc
 *.out
-
-docker-compose.yml
-dockerfile
-render.yaml
-README.md
-feedback_service
