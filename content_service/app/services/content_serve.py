@@ -1,12 +1,10 @@
 import threading
-import logging
 from datetime import datetime, timezone
-from pymongo import UpdateOne
-from services.category_generation import classifier
-from db.mongo import mongo_db
-from shared_libs.utils.kafka_producer import KafkaEventProducer
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from app.services.category_generation import classifier
+from app.db.mongo import mongo_db
+from app.config.logger_config import logger
+from app.event.kafka_producer import KafkaEventProducer
+from app.config.config import KAFKA_EMBEDDING_UPDATE_TOPIC
 
 class ContentService:
     def __init__(self):
@@ -41,7 +39,7 @@ class ContentService:
             content_id = str(inserted_content.inserted_id)
         
         logger.info(f"Content processed and stored successfully: {content_id}")
-        self.embedding_update_producer.send("embedding_update_required",
+        self.embedding_update_producer.send(KAFKA_EMBEDDING_UPDATE_TOPIC,
         {
             "filtered_articles": [{
                 "id": content_id,

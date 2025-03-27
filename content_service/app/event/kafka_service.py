@@ -1,23 +1,24 @@
 import threading
 import time
-from shared_libs.utils.kafka_producer import KafkaEventProducer
-import logging
-from services.content_serve import content_service
+from app.config.logger_config import logger
+from app.event.kafka_producer import kafka_event_producer
+from app.services.content_serve import content_service
 from collections import defaultdict
+from app.config.config import KAFKA_BALANCE_INTEREST_TOPIC,KAFKA_EMBEDDING_UPDATE_TOPIC
 
 class ContentServiceKafkaHandler:
     def __init__(self):
         self.content_service = content_service
-        self.embedding_update_producer = KafkaEventProducer()
+        self.embedding_update_producer = kafka_event_producer
         self.article_engagement_scores = {}
         self.lock = threading.Lock()
 
     def batch_compute_and_trigger_updates(self, article_ids,userId):
         if not article_ids:
-            logging.info("No article IDs provided. Skipping batch processing.")
+            logger.info("No article IDs provided. Skipping batch processing.")
             return
         
-        logging.info("batch computing checking: ")
+        logger.info("batch computing checking: ")
         pipeline = [
             {"$match": {"_id": {"$in": article_ids}}},
             {"$project": {
@@ -37,10 +38,10 @@ class ContentServiceKafkaHandler:
         
         articles_scores = self.content_service.aggregation(pipeline)
         if not articles_scores:
-            logging.info("No articles found for the given IDs.")
+            logger.info("No articles found for the given IDs.")
             return
         
-        logging.info("Computing user interest from engagement data...")
+        logger.info("Computing user interest from engagement data...")
         self.compute_user_interest(userId, articles_scores)
         
         print("article_scores",articles_scores)
@@ -68,8 +69,8 @@ class ContentServiceKafkaHandler:
     def trigger_batch_embedding_update(self, batch_updates):
         event_data = {"filtered_articles": batch_updates}
         print("trigeered embedding update happen")
-        self.embedding_update_producer.send("embedding_update_required",event_data)
-        logging.info(f"Triggered embedding update for {len(batch_updates)} articles.")
+        self.embedding_update_producer.send(KAFKA_EMBEDDING_UPDATE_TOPIC,event_data)
+        logger.info(f"Triggered embedding update for {len(batch_updates)} articles.")
         
     def compute_user_interest(self,user_id, articles):
         category_weights = defaultdict(float)
@@ -100,6 +101,6 @@ class ContentServiceKafkaHandler:
             "updatedInterest": user_interest
         }
         print("Producer user_interest produced happend")
-        self.embedding_update_producer.send("balance_user_interest",interest_payload)
+        self.embedding_update_producer.send(KAFKA_BALANCE_INTEREST_TOPIC,interest_payload)
 
 content_kafka_service = ContentServiceKafkaHandler()

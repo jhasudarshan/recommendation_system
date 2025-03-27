@@ -1,22 +1,22 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-import logging
-import uvicorn
-from api.content import router as content_api
-from event.kafka_service import content_kafka_service
-from api.feedback import router as feedback_api
+from app.config.logger_config import logger
+import threading
+from app.api.content import router as content_api
+from app.event.kafka_service import content_kafka_service
+from app.api.feedback import router as feedback_api
+from app.services.new_scheduler import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("Content Service Starting...")
+    logger.info("Content Service Starting...")
+    scheduler_thread = threading.Thread(target=scheduler.start_scheduler, daemon=True)
+    scheduler_thread.start()
     yield
-    logging.info("Content Service Shutting Down...")
+    logger.info("Content Service Shutting Down...")
 
 app = FastAPI(title="Content Service", lifespan=lifespan)
 
 app.include_router(content_api, prefix="/content", tags=["Content"])
 app.include_router(feedback_api, prefix="/feedback", tags=["Content"])
 
-if __name__ == "__main__":
-    logging.info("Starting Content Service...")
-    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="info")

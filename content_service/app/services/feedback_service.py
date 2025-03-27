@@ -1,10 +1,10 @@
-import logging
 from datetime import datetime, timezone
 from pymongo import UpdateOne
 from bson import ObjectId
 from threading import Lock
-from services.content_serve import content_service
-from event.kafka_service import content_kafka_service
+from app.config.logger_config import logger
+from app.services.content_serve import content_service
+from app.event.kafka_service import content_kafka_service
 
 class FeedbackProcessor:
     def __init__(self):
@@ -18,13 +18,13 @@ class FeedbackProcessor:
             user_id = event.get("user_id")
             print(event)
             if not user_id:
-                logging.info("No UserId received for interaction change")
+                logger.info("No UserId received for interaction change")
                 return
             if not articles:
-                logging.info("No articles received for metadata update.")
+                logger.info("No articles received for metadata update.")
                 return
             
-            logging.info(f"Received metadata update for {len(articles)} articles.")
+            logger.info(f"Received metadata update for {len(articles)} articles.")
 
             with self.lock:
                 bulk_updates = []
@@ -53,11 +53,11 @@ class FeedbackProcessor:
 
                 if bulk_updates:
                     result = self.content_service.bulkUpdate(bulk_updates)
-                    logging.info(f"Matched: {result.matched_count}, Modified: {result.modified_count}")
+                    logger.info(f"Matched: {result.matched_count}, Modified: {result.modified_count}")
                 print("batched and compute call happend")
                 self.kafka_service.batch_compute_and_trigger_updates(article_ids, user_id)
 
         except Exception as e:
-            logging.error(f"Error processing metadata update: {e}", exc_info=True)
+            logger.error(f"Error processing metadata update: {e}", exc_info=True)
             
 feedback_log_service = FeedbackProcessor()

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from services.feedback_service import feedback_log_service
+from app.services.feedback_service import feedback_log_service
 from typing import Dict
 
 router = APIRouter()
