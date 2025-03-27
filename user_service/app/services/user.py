@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from db.mongo import mongo_db
-from models.mongo_model import User, Interest
-from services.generate_embedding import CategoryEmbeddingService
-from typing import List,Dict
-import numpy as np
-import logging
 from collections import defaultdict
 from bson import ObjectId
+from typing import List,Dict
+import numpy as np
+from app.config.logger_config import logger
+from app.db.mongo import mongo_db
+from app.models.mongo_model import User, Interest
+from app.services.generate_embedding import CategoryEmbeddingService
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ class UserInterestService:
             new_user = User(email=email, interests=interests)
             self.user_collection.insert_one(new_user.dict(by_alias=True))
 
-        logging.info(f"Logged interest for user: {email}")
+        logger.info(f"Logged interest for user: {email}")
 
     
     def compute_user_embedding(self, email: str) -> List[float]:
@@ -60,22 +60,20 @@ class UserInterestService:
             new_interest = event.get("updatedInterest", [])
 
             if not user_id or not new_interest:
-                logging.info("Invalid event data: Missing userId or userInterest.")
+                logger.info("Invalid event data: Missing userId or userInterest.")
                 return
             
             # Fetch previous interest from MongoDB
             user_data = self.user_collection.find_one({"_id": user_id}, {"interests": 1})
-            print(user_data)
             previous_interest = user_data.get("interests", []) if user_data else []
 
-            # Convert interests into a dict for easier merging
             prev_interest_dict = {item["topic"]: item["weight"] for item in previous_interest}
             new_interest_dict = {item["topic"]: item["weight"] for item in new_interest}
 
             # Merge interests (normalize and balance short-term vs long-term)
             final_interest = defaultdict(float)
-            weight_previous = 0.7  # Long-term weight
-            weight_new = 0.3  # Short-term weight
+            weight_previous = 0.7
+            weight_new = 0.3
             
             for topic, wt in prev_interest_dict.items():
                 final_interest[topic] += wt * weight_previous
@@ -83,21 +81,19 @@ class UserInterestService:
             for topic, wt in new_interest_dict.items():
                 final_interest[topic] += wt * weight_new
 
-            # Normalize final interest
             total_weight = sum(final_interest.values())
             if total_weight > 0:
                 for topic in final_interest:
                     final_interest[topic] /= total_weight
 
-            # Convert final interest back to list format
             updated_interest = [{"topic": topic, "weight": weight} for topic, weight in final_interest.items()]
             
-            # Update user interests in MongoDB
+        
             self.user_collection.update_one({"_id": user_id}, {"$set": {"interests": updated_interest}})
             user_data = self.user_collection.find_one({"_id": user_id})
-            logging.info(f"User {user_id} interest updated successfully.")
+            logger.info(f"User {user_id} interest updated successfully.")
 
         except Exception as e:
-            logging.error(f"Error processing interest update: {e}", exc_info=True)
+            logger.error(f"Error processing interest update: {e}", exc_info=True)
     
 user_service = UserInterestService()

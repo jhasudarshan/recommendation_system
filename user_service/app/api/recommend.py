@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from services.recommend_service import recommend_service
+from app.services.recommend_service import recommend_service
 
 router = APIRouter()
 

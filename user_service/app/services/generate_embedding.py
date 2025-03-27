@@ -2,14 +2,14 @@ import numpy as np
 import json
 # from sentence_transformers import SentenceTransformer
 # from sklearn.decomposition import PCA
-from db.mongo import mongo_db
-from services.redis_cache import redis_cache
+from app.db.mongo import mongo_db
+from app.db.redis_cache import redis_cache
 from pymongo.collection import Collection
 from pymongo.database import Database
 
 
 class CategoryEmbeddingService:
-    def __init__(self, model_name="all-MiniLM-L6-v2", n_components=14):
+    def __init__(self, n_components=14):
         self.categories = [
             "Gaming", "Finance", "Business", "Healthcare", "Science", "Education", "Psychology",
             "Marketing", "Politics", "Entertainment", "Sports", "Travel", "Sustainability", "Technology"

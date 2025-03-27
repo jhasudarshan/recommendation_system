@@ -1,7 +1,7 @@
-from db.mongo import mongo_db
-from db.qdrant import qdrant_db
-from services.user import user_service
-import logging
+from app.db.mongo import mongo_db
+from app.db.qdrant import qdrant_db
+from app.config.logger_config import logger
+from app.services.user import user_service
 import uuid
 
 class RecommendService:
@@ -11,7 +11,7 @@ class RecommendService:
     def get_recommendations(self, email: str, top_k: int = 30):
         user_embedding = user_service.compute_user_embedding(email)
         if not user_embedding:
-            logging.warning(f"No embedding found for user: {email}")
+            logger.warning(f"No embedding found for user: {email}")
             return {"message": "No embedding found for user.", "recommendations": []}
 
         search_results = qdrant_db.search_vector("content_embeddings", user_embedding, top_k)
@@ -34,7 +34,7 @@ class RecommendService:
 
         recommended_content.sort(key=lambda x: x["score"], reverse=True)
 
-        logging.info(f"Retrieved {len(recommended_content)} recommendations for user: {email}")
+        logger.info(f"Retrieved {len(recommended_content)} recommendations for user: {email}")
         return {"message": "Recommendations fetched successfully.", "recommendations": recommended_content}
 
     

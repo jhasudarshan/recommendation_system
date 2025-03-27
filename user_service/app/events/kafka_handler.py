@@ -1,26 +1,29 @@
 import threading
-import logging
-from shared_libs.utils.kafka_consumer import KafkaEventConsumer
-from db.qdrant import qdrant_db
-from services.generate_embedding import embedding_service
 import uuid
-from services.user import user_service
+from app.config.logger_config import logger
+from app.events.kafka_consumer import KafkaEventConsumer
+from app.db.qdrant import qdrant_db
+from app.services.generate_embedding import embedding_service
+from app.services.user import user_service
+from app.config.config import KAFKA_EMBEDDING_UPDATE_TOPIC,KAFKA_BALANCE_INTEREST_TOPIC,EMBEDDING_UPDATE,INTEREST_UPDATE_GROUP
 
 class UserServiceKafkaHandler:
     def __init__(self):
         self.embedding_service = embedding_service 
         self.user_service = user_service
+        
         self.embedding_update_consumer = KafkaEventConsumer(
-            topic="embedding_update_required",
-            group_id="user-service-group-1"
+            topic=KAFKA_EMBEDDING_UPDATE_TOPIC,
+            group_id=EMBEDDING_UPDATE
         )
+        
         self.interest_update_consumer = KafkaEventConsumer(
-            topic="balance_user_interest",
-            group_id="user-service-group-2"
+            topic=KAFKA_BALANCE_INTEREST_TOPIC,
+            group_id=INTEREST_UPDATE_GROUP
         )
 
     def start_listeners(self):
-        logging.info("Starting Kafka listener for embedding_update_required")
+        logger.info("Starting Kafka listener for embedding_update_required")
         listener_thread1 = threading.Thread(target=self.embedding_listener, daemon=True)
         listener_thread1.start()
         
@@ -36,16 +39,11 @@ class UserServiceKafkaHandler:
     def process_embedding_update(self, event):
         try:
             filtered_articles = event.get("filtered_articles", [])
-            print("filtered_article: ",filtered_articles)
             if not filtered_articles:
-                logging.info("No articles received for embedding update.")
+                logger.info("No articles received for embedding update.")
                 return
 
-            logging.info(f"Processing embedding update for {len(filtered_articles)} articles.")
-
-            existing_vector_ids = qdrant_db.get_all_vector_ids("content_embeddings")
-            print("existing ",existing_vector_ids)
-            existing_set = set(existing_vector_ids)
+            logger.info(f"Processing embedding update for {len(filtered_articles)} articles.")
 
             new_articles = []
             current_ids = set()
@@ -53,20 +51,20 @@ class UserServiceKafkaHandler:
             for article in filtered_articles:
                 article_id = str(article.get("id"))
                 if not article_id:
-                    logging.warning("Skipping article with missing ID.")
+                    logger.warning("Skipping article with missing ID.")
                     continue  
 
                 try:
                     qdrant_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, article_id))
                 except ValueError:
-                    logging.error(f"Invalid article_id format: {article_id}")
+                    logger.error(f"Invalid article_id format: {article_id}")
                     continue  
 
                 current_ids.add(qdrant_id)
 
                 category_embedding = self.embedding_service.get_embedding(article.get("category", ""))
                 if category_embedding is None:
-                    logging.warning(f"No embedding found for category '{article.get('category', '')}', using zero vector.")
+                    logger.warning(f"No embedding found for category '{article.get('category', '')}', using zero vector.")
                     category_embedding = [0.0] * 14
 
                 tag_embeddings = [
@@ -93,12 +91,12 @@ class UserServiceKafkaHandler:
 
             if new_articles:
                 qdrant_db.upsert_vectors("content_embeddings", new_articles)
-                print(f"Upserted {len(new_articles)} new embeddings to Qdrant.")
+                logger.info(f"Upserted {len(new_articles)} new embeddings to Qdrant.")
 
-            print("Qdrant embeddings updated successfully.")
+            logger.info("Qdrant embeddings updated successfully.")
 
         except Exception as e:
-            logging.error(f"Error processing embedding update: {e}", exc_info=True)
+            logger.error(f"Error processing embedding update: {e}", exc_info=True)
 
 
 user_service_kafka = UserServiceKafkaHandler()

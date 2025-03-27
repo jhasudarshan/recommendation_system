@@ -1,33 +1,37 @@
-import logging
 from typing import List, Dict
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import Distance, VectorParams
-from config.config import QDRANT_HOST, QDRANT_PORT
+from app.config.logger_config import logger
+from app.config.config import QDRANT_TOKEN,QDRANT_HOST,QDRANT_COLLECTION
 
 class QdrantDB:
-    def __init__(self, host: str, port: int, collection_name: str = "content_embeddings"):
+    def __init__(self,collection_name: str = QDRANT_COLLECTION):
         try:
-            self.client = QdrantClient(host=host, port=port)
+            self.client = QdrantClient(
+                url=QDRANT_HOST, 
+                api_key=QDRANT_TOKEN,
+            )
+            
             self.collection_name = collection_name
             self._initialize_collection()
-            logging.info("Qdrant Connected Successfully")
+            logger.info("Qdrant Connected Successfully")
         except Exception as e:
-            logging.error(f"Qdrant Connection Failed: {e}")
+            logger.error(f"Qdrant Connection Failed: {e}")
             self.client = None
         
     def _initialize_collection(self):
         try:
             self.client.get_collection(self.collection_name)
         except Exception:
-            logging.info(f" Creating collection: {self.collection_name}")
+            logger.info(f" Creating collection: {self.collection_name}")
             self.client.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=VectorParams(size=300, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=14, distance=Distance.COSINE)
             )
 
     def upsert_vectors(self, collection_name: str, vectors: List[Dict]):
         if self.client is None:
-            logging.error("Qdrant client is not connected.")
+            logger.error("Qdrant client is not connected.")
             return
         
         points = [
@@ -36,7 +40,7 @@ class QdrantDB:
         ]
 
         self.client.upsert(collection_name=collection_name, points=points)
-        logging.info(f"Upserted {len(vectors)} vectors into '{collection_name}'.")
+        logger.info(f"Upserted {len(vectors)} vectors into '{collection_name}'.")
         return
 
     def get_all_vector_ids(self, collection_name: str) -> List[str]:
@@ -47,7 +51,7 @@ class QdrantDB:
             )
             return [str(point.id) for point in points]
         except Exception as e:
-            logging.error(f"Error fetching vector IDs from Qdrant: {e}")
+            logger.error(f"Error fetching vector IDs from Qdrant: {e}")
             return []
 
     def delete_vectors(self, collection_name, vector_ids):
@@ -58,7 +62,7 @@ class QdrantDB:
 
     def search_vector(self, collection_name: str, query_vector: List[float], top_k: int = 5):
         if self.client is None:
-            logging.error("Qdrant client is not connected.")
+            logger.error("Qdrant client is not connected.")
             return []
 
         try:
@@ -67,15 +71,15 @@ class QdrantDB:
                 query_vector=query_vector,
                 limit=top_k
             )
-            logging.info(f"Search in '{collection_name}' returned {len(results)} results.")
+            logger.info(f"Search in '{collection_name}' returned {len(results)} results.")
             return results
         except Exception as e:
-            logging.error(f"Qdrant Search Error: {e}")
+            logger.error(f"Qdrant Search Error: {e}")
             return []
 
     def search_similar_users(self, query_embedding: List[float], top_k: int = 30) -> List[Dict]:
         if self.client is None:
-            logging.error("Qdrant client is not connected.")
+            logger.error("Qdrant client is not connected.")
             return []
 
         try:
@@ -86,7 +90,7 @@ class QdrantDB:
             )
             return [{"user_id": res.payload["user_id"], "score": res.score} for res in search_results]
         except Exception as e:
-            logging.error(f"Error searching similar users: {e}")
+            logger.error(f"Error searching similar users: {e}")
             return []
 
-qdrant_db = QdrantDB(QDRANT_HOST, QDRANT_PORT)
+qdrant_db = QdrantDB()

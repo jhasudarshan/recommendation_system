@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from services.user import user_service
-from models.mongo_model import User
+from app.services.user import user_service
+from app.models.mongo_model import User
 
 router = APIRouter()
 
