@@ -1,0 +1,36 @@
+services:
+  user_service:
+    build:
+      context: .
+      dockerfile: jhasudarshan/recommendation_system-user_service:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - KAFKA_EMBEDDING_UPDATE_TOPIC=${KAFKA_EMBEDDING_UPDATE_TOPIC}
+      - KAFKA_BALANCE_INTEREST_TOPIC=${KAFKA_BALANCE_INTEREST_TOPIC}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_TOKEN=${QDRANT_TOKEN}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION}
+  content_service:
+    build:
+      context: .
+      dockerfile: jhasudarshan/recommendation_system-content_service:latest
+    ports:
+      - "8002:8002"
+    environment:
+      - KAFKA_EMBEDDING_UPDATE_TOPIC=${KAFKA_EMBEDDING_UPDATE_TOPIC}
+      - KAFKA_BALANCE_INTEREST_TOPIC=${KAFKA_BALANCE_INTEREST_TOPIC}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - MONGO_URI=${MONGO_URI}
+      - DB_NAME=${DB_NAME}
+      - CLASSIFIER_MODEL=${CLASSIFIER_MODEL}
+      - CLASSIFICATION=${CLASSIFICATION}
+      - FETCH_API_URL=${FETCH_API_URL}
+      - PROCESS_API_URL=${PROCESS_API_URL}
+      - API_KEY=${API_KEY}
