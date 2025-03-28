@@ -112,6 +112,7 @@ _Logs interaction metrics and updates content metadata._
 ## **Postman Collection**
 
 We have provided a **Postman collection** to test all API endpoints. You can find the collection in the postman/ folder within this repository. Import it into Postman to quickly test the available endpoints.
+
 ---
 
 ## **Future Improvements**
