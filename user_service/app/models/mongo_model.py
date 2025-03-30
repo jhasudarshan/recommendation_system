@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field,EmailStr
 from typing import List, Dict, Optional
 from bson import ObjectId
 from pydantic.json_schema import JsonSchemaValue
@@ -37,12 +37,20 @@ class Interest(BaseModel):
     weight: float
 
 class User(BaseModel):
-    email: str
+    username: str
+    email: EmailStr
     interests: List[Interest]
+    hashed_password: str
+    verified: bool
 
     class Config:
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+        
+class NewUser(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
 
 class CategoryEmbedding(BaseModel):
     category: str

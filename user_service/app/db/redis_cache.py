@@ -41,6 +41,57 @@ class RedisCache:
         except (redis.RedisError, json.JSONDecodeError) as e:
             logger.error(f"Redis Get Cache Error: {e}")
         return None
+    
+    def set_value(self, key: str, value: str, expiry: int):
+        if not self.client:
+            logger.error("Redis Not Initialized! Cannot set value.")
+            return False
+
+        try:
+            self.client.setex(key, expiry, value)
+            logger.info(f"Stored value for key: '{key}' (Expires in {expiry} sec)")
+            return True
+        except redis.RedisError as e:
+            logger.error(f"Redis Set Value Error: {e}")
+        return False
+
+    def get_value(self, key: str):
+        if not self.client:
+            logger.error("Redis Not Initialized! Cannot get value.")
+            return None
+
+        try:
+            return self.client.get(key).decode() if self.client.get(key) else None
+        except redis.RedisError as e:
+            logger.error(f"Redis Get Value Error: {e}")
+        return None
+
+    def increment_key(self, key: str, expiry: int = 3600):
+        if not self.client:
+            logger.error("Redis Not Initialized! Cannot increment key.")
+            return None
+
+        try:
+            count = self.client.incr(key)
+            if count == 1:
+                self.client.expire(key, expiry)
+            return count
+        except redis.RedisError as e:
+            logger.error(f"Redis Increment Key Error: {e}")
+        return None
+
+    def delete_key(self, key: str):
+        if not self.client:
+            logger.error("Redis Not Initialized! Cannot delete key.")
+            return False
+
+        try:
+            self.client.delete(key)
+            logger.info(f"Deleted key: '{key}' from Redis.")
+            return True
+        except redis.RedisError as e:
+            logger.error(f"Redis Delete Key Error: {e}")
+        return False
 
     def close(self):
         if self.client:
