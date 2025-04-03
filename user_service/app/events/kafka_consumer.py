@@ -11,7 +11,6 @@ class KafkaEventConsumer:
         self.auto_offset_reset = auto_offset_reset
 
     def safe_deserializer(self, x):
-        """Safely deserialize Kafka messages into JSON."""
         try:
             return json.loads(x.decode("utf-8")) if x else None
         except json.JSONDecodeError:
@@ -19,15 +18,14 @@ class KafkaEventConsumer:
             return None
 
     def _create_consumer(self):
-        """Creates a Kafka consumer instance with proper configuration."""
         try:
             return KafkaConsumer(
                 self.topic,
                 bootstrap_servers=KAFKA_BROKER,
                 auto_offset_reset=self.auto_offset_reset,
                 enable_auto_commit=False,
-                group_id=self.group_id,  # ✅ Separate group IDs prevent conflicts
-                value_deserializer=self.safe_deserializer  # ✅ Fix here
+                group_id=self.group_id,
+                value_deserializer=self.safe_deserializer
             )
         except Exception as e:
             logging.error(f"Error creating Kafka Consumer: {e}")

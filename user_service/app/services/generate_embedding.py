@@ -35,7 +35,7 @@ class CategoryEmbeddingService:
     #     self.category_embedding_dict = {self.categories[i]: reduced_embeddings[i].tolist() for i in range(len(self.categories))}
 
     def _load_embeddings(self):
-        cached_data = redis_cache.get_cache("category_embeddings")
+        cached_data = (redis_cache.get_cache("category_embeddings")or {}).get("data")
 
         if cached_data:
             self.category_embedding_dict = cached_data

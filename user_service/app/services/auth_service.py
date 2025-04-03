@@ -3,6 +3,7 @@ from fastapi import HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime,timezone
 from app.db.mongo import mongo_db
+from app.db.redis_cache import redis_cache
 from app.utils.security_utils import security_utils
 from app.utils.email_utils import email_utils
 
@@ -14,6 +15,7 @@ class AuthService:
             cls._instance = super(AuthService, cls).__new__(cls)
             cls._instance.user_collection = mongo_db.get_collection("users")
             cls._instance.session_collection = mongo_db.get_collection("sessions")
+            cls.redis_cache = redis_cache
         return cls._instance
 
     def signup(self, username: str, email: str, password: str) -> JSONResponse:
@@ -51,18 +53,18 @@ class AuthService:
         access_token = security_utils.create_access_token(data={"sub": user["email"]})
         refresh_token = security_utils.create_refresh_token(data={"sub": user["email"]})
 
-        session_id = str(uuid.uuid4())
-        session_data = {
-            "session_id": session_id,
-            "last_login": datetime.now(timezone.utc),
-            "active": True,
-        }
+        # session_id = str(uuid.uuid4())
+        # session_data = {
+        #     "session_id": session_id,
+        #     "last_login": datetime.now(timezone.utc),
+        #     "active": True,
+        # }
 
-        self.session_collection.update_one(
-            {"email": email},
-            {"$push": {"sessions": session_data}},
-            upsert=True
-        )
+        # self.session_collection.update_one(
+        #     {"email": email},
+        #     {"$push": {"sessions": session_data}},
+        #     upsert=True
+        # )
 
         response = JSONResponse(content={"message": "Login successful"})
         security_utils._set_auth_cookies(response,access_token,refresh_token)
@@ -77,23 +79,13 @@ class AuthService:
         payload = security_utils.decode_refresh_token(old_refresh_token)
         if not payload:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
+        
         email = payload.get("sub")
-        session = self.session_collection.find_one({"email": email}, {"refresh_token": 1, "rotated": 1})
-
-        if not session or session["refresh_token"] != old_refresh_token or session["rotated"]:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
-
         new_access_token = security_utils.create_access_token(data={"sub": email})
         new_refresh_token = security_utils.create_refresh_token(data={"sub": email})
 
-        self.session_collection.update_one(
-            {"email": email, "sessions.session_id": session.get("session_id")},
-            {"$set": {"sessions.$.last_login": datetime.now(timezone.utc), "sessions.$.active": True}}
-        )
-
         security_utils._set_auth_cookies(response, new_access_token, new_refresh_token)
-        return response
+        return response, new_access_token
     
     def get_current_user(self, request: Request, response: Response) -> JSONResponse:
         access_token = request.cookies.get("access_token")
@@ -101,11 +93,9 @@ class AuthService:
 
         if not payload:
             try:
-                response = self.refresh_access_token(request, response)
-                access_token = response.headers.get("set-cookie")
-                if access_token:
-                    access_token = access_token.split(";")[0].split("=")[1]
-                    payload = security_utils.decode_access_token(access_token)
+                response,new_access_token = self.refresh_access_token(request, response)
+                if new_access_token:
+                    payload = security_utils.decode_access_token(new_access_token)
             except HTTPException:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not refresh access token")
 
@@ -113,11 +103,27 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired access token")
 
         email = payload.get("sub")
-        user = self.user_collection.find_one({"email": email}, {"_id": 0, "hashed_password": 0})
+        redis_key = f"user:{email}"  
+        redis_interest_key = f"user:{email}:interest"
+        
+        cached_user = (self.redis_cache.get_cache(redis_key)or {}).get("data")
+        if cached_user:
+            self.redis_cache.set_cache(redis_key, 21600)
+            self.redis_cache.set_cache(redis_interest_key, 3600)
+        else:
+            user = self.user_collection.find_one({"email": email}, {"_id": 0,"hashed_password": 0})
+            if not user:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-        if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-
+            cached_user = {
+                "username": user['username'],
+                "email": user['email']
+            }
+            self.redis_cache.set_cache(redis_key, cached_user, expiry=21600)
+            user_interest = user.get("interests")
+            if user_interest:
+                redis_cache.set_cache(redis_interest_key, user_interest, expiry=21600)
+            
         response = JSONResponse(content={"message": "User authenticated", "user": user})
         return response
 
@@ -128,16 +134,17 @@ class AuthService:
             payload = security_utils.decode_refresh_token(refresh_token)
             if payload:
                 email = payload.get("sub")
-                session_id = self.session_collection.find_one({"email": email}, {"sessions.session_id": 1}).get("session_id")
+                self.redis_cache.remove_user_from_cache(email)
+        #     #     session_id = self.session_collection.find_one({"email": email}, {"sessions.session_id": 1}).get("session_id")
 
-                self.session_collection.update_one(
-                    {"email": email, "sessions.session_id": session_id},
-                    {"$set": {
-                        "sessions.$.active": False,
-                        "sessions.$.last_logout": datetime.now(timezone.utc),
-                        "sessions.$.rotated": True
-                    }}
-                )
+        #     #     self.session_collection.update_one(
+        #     #         {"email": email, "sessions.session_id": session_id},
+        #     #         {"$set": {
+        #     #             "sessions.$.active": False,
+        #     #             "sessions.$.last_logout": datetime.now(timezone.utc),
+        #     #             "sessions.$.rotated": True
+        #     #         }}
+        #     #     )
 
         response = JSONResponse(content={"message": "Logout successful"}, status_code=status.HTTP_200_OK)
         security_utils._clear_auth_cookies(response)

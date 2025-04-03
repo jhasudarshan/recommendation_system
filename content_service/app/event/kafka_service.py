@@ -13,7 +13,7 @@ class ContentServiceKafkaHandler:
         self.article_engagement_scores = {}
         self.lock = threading.Lock()
 
-    def batch_compute_and_trigger_updates(self, article_ids,userId):
+    def batch_compute_and_trigger_updates(self, article_ids,email):
         if not article_ids:
             logger.info("No article IDs provided. Skipping batch processing.")
             return
@@ -42,7 +42,7 @@ class ContentServiceKafkaHandler:
             return
         
         logger.info("Computing user interest from engagement data...")
-        self.compute_user_interest(userId, articles_scores)
+        self.compute_user_interest(email, articles_scores)
         
         print("article_scores",articles_scores)
         batch_updates = []
@@ -72,7 +72,7 @@ class ContentServiceKafkaHandler:
         self.embedding_update_producer.send(KAFKA_EMBEDDING_UPDATE_TOPIC,event_data)
         logger.info(f"Triggered embedding update for {len(batch_updates)} articles.")
         
-    def compute_user_interest(self,user_id, articles):
+    def compute_user_interest(self,email, articles):
         category_weights = defaultdict(float)
         category_counts = defaultdict(int)
         
@@ -97,7 +97,7 @@ class ContentServiceKafkaHandler:
         user_interest = [{"topic": topic, "weight": weight} for topic, weight in category_weights.items()]
         
         interest_payload = {
-            "userId": user_id,
+            "email": email,
             "updatedInterest": user_interest
         }
         print("Producer user_interest produced happend")

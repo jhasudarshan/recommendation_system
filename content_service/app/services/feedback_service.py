@@ -15,9 +15,9 @@ class FeedbackProcessor:
     def process_metadata_update(self, event):
         try:
             articles = event.get("articles", [])
-            user_id = event.get("user_id")
+            email = event.get("email")
             print(event)
-            if not user_id:
+            if not email:
                 logger.info("No UserId received for interaction change")
                 return
             if not articles:
@@ -55,7 +55,7 @@ class FeedbackProcessor:
                     result = self.content_service.bulkUpdate(bulk_updates)
                     logger.info(f"Matched: {result.matched_count}, Modified: {result.modified_count}")
                 print("batched and compute call happend")
-                self.kafka_service.batch_compute_and_trigger_updates(article_ids, user_id)
+                self.kafka_service.batch_compute_and_trigger_updates(article_ids, email)
 
         except Exception as e:
             logger.error(f"Error processing metadata update: {e}", exc_info=True)

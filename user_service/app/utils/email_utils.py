@@ -3,7 +3,6 @@ import random
 import string
 import socket
 import hashlib
-import uuid
 from datetime import datetime,timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -60,12 +59,12 @@ class EmailUtils:
             otp_request_count_key = f"otp_requests:{email}"
             last_request_key = f"otp_last_request:{email}"
 
-            request_count = redis_cache.get_cache(otp_request_count_key)
+            request_count = redis_cache.get_value(otp_request_count_key).get("data")
             if request_count and int(request_count) >= OTP_REQUEST_LIMIT:
                 logger.warning(f"OTP request limit exceeded for {email}")
                 return False
 
-            last_request = redis_cache.get_cache(last_request_key)
+            last_request = redis_cache.get_value(last_request_key)
             if last_request:
                 logger.warning(f"OTP cooldown active for {email}")
                 return False
@@ -93,7 +92,7 @@ class EmailUtils:
             redis_cache.set_cache(f"email_otp:{email}", {"otp": hashed_otp}, OTP_EXPIRY_SECONDS)
 
             otp_request_count_key = f"otp_requests:{email}"
-            redis_cache.set_value(otp_request_count_key, int(redis_cache.get_cache(otp_request_count_key) or 0) + 1, 86400)
+            redis_cache.set_value(otp_request_count_key, int(redis_cache.get_value(otp_request_count_key) or 0) + 1, 86400)
 
             last_request_key = f"otp_last_request:{email}"
             redis_cache.set_value(last_request_key, "1", OTP_RESEND_COOLDOWN)
@@ -124,7 +123,7 @@ class EmailUtils:
 
     def verify_email_otp(self, email: str, otp: str, response: Response) -> JSONResponse:
         try:
-            stored_data = redis_cache.get_cache(f"email_otp:{email}")
+            stored_data = (redis_cache.get_cache(f"email_otp:{email}") or {}).get("data")
             logger.info(f"email: {email} and data: {stored_data}")
             
             if stored_data:
@@ -136,18 +135,18 @@ class EmailUtils:
                     logger.info(f"OTP verified successfully for {email}")
                     
                     self.user_collection.update_one({"email": email}, {"$set": {"verified": True}})
-                    session_id = str(uuid.uuid4())
-                    session_data = {
-                        "session_id": session_id,
-                        "last_login": datetime.now(timezone.utc),
-                        "active": True,
-                    }
+                    # session_id = str(uuid.uuid4())
+                    # session_data = {
+                    #     "session_id": session_id,
+                    #     "last_login": datetime.now(timezone.utc),
+                    #     "active": True,
+                    # }
 
-                    self.session_collection.update_one(
-                        {"email": email},
-                        {"$push": {"sessions": session_data}},
-                        upsert=True
-                    )
+                    # self.session_collection.update_one(
+                    #     {"email": email},
+                    #     {"$push": {"sessions": session_data}},
+                    #     upsert=True
+                    # )
                     access_token = security_utils.create_access_token(data={"sub": email})
                     refresh_token = security_utils.create_refresh_token(data={"sub": email})
                     response = JSONResponse(content={"message": "OTP verified successfully"})

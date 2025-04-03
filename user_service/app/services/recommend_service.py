@@ -27,8 +27,9 @@ class RecommendService:
             content_id = content_id_map.get(content_uuid)
 
             if content_id:
-                content_data = self.content_collection.find_one({"_id": content_id}, {"_id": 0})
+                content_data = self.content_collection.find_one({"_id": content_id})
                 if content_data:
+                    content_data["_id"] = str(content_data["_id"])
                     content_data["score"] = result.score
                     recommended_content.append(content_data)
 
