@@ -106,13 +106,18 @@ class EmailUtils:
     def send_otp_email(self, email: str):
         try:
             otp = self.generate_email_otp(email)
-            subject = "Your OTP Code"
+            subject = "Verify Your Account on AI-NewsSphere" 
+
             body = f"""
             <html>
-                <body>
-                    <h2>Your One-Time Password</h2>
-                    <p>Your OTP for verification is: <b>{otp}</b></p>
-                    <p>This OTP is valid for {OTP_EXPIRY_SECONDS // 60} minutes.</p>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                    <h2 style="text-align: center;">Verify Your Account</h2>
+                    <p>Dear User,</p>
+                    <p>Your One-Time Password (OTP) for verifying your account on <strong>AI-NewsSphere</strong> is:</p> 
+                    <p style="font-size: 20px; font-weight: bold; text-align: center;">{otp}</p>
+                    <p>This OTP is valid for <strong>{OTP_EXPIRY_SECONDS // 60} minutes</strong>. Please do not share it with anyone.</p>
+                    <p>If you did not request this, please ignore this email.</p>
+            
                 </body>
             </html>
             """
