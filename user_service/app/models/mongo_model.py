@@ -46,6 +46,10 @@ class User(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+class UserLogInterest(BaseModel):
+    email: EmailStr
+    interests: List[Interest]
         
 class NewUser(BaseModel):
     username: str

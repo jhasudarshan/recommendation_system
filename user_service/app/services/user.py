@@ -85,8 +85,19 @@ class UserInterestService:
                 user_data = self.user_collection.find_one({"email": email}, {"interests": 1})
                 previous_interest = user_data.get("interests", []) if user_data else []
 
-            prev_interest_dict = {item["topic"]: item["weight"] for item in previous_interest}
-            new_interest_dict = {item["topic"]: item["weight"] for item in new_interest}
+            if not isinstance(previous_interest, list):
+                previous_interest = []
+            prev_interest_dict = {
+                item["topic"]: item["weight"]
+                for item in previous_interest
+                if isinstance(item, dict) and "topic" in item and "weight" in item
+            }
+            
+            new_interest_dict = {
+                item["topic"]: item["weight"]
+                for item in new_interest
+                if isinstance(item, dict) and "topic" in item and "weight" in item
+            }
             
             final_interest = defaultdict(float)
             weight_previous = 0.7

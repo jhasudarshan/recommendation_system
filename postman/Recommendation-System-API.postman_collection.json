@@ -8,13 +8,13 @@
 			"name": "users",
 			"item": [
 				{
-					"name": "New Request",
+					"name": "log-interest",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"email\": \"new_user_1_@example.com\",\r\n    \"interests\": [\r\n        {\"topic\": \"Technology\", \"weight\": 0.7},\r\n        {\"topic\": \"Finance\", \"weight\": 0.7}\r\n    ]\r\n}",
+							"raw": "{\r\n    \"email\": \"jhasudarshan459@gmail.com\",\r\n    \"interests\": [\r\n        {\"topic\": \"Technology\", \"weight\": 0.7},\r\n        {\"topic\": \"Finance\", \"weight\": 0.7}\r\n    ]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -22,9 +22,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{host_url}}/users/log-interest",
+							"raw": "{{user_host_url}}/users/log-interest",
 							"host": [
-								"{{host_url}}"
+								"{{user_host_url}}"
 							],
 							"path": [
 								"users",
@@ -35,14 +35,14 @@
 					"response": []
 				},
 				{
-					"name": "New Request",
+					"name": "recommend-article",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{host_url}}/recommend?email=new_user_@example.com&top_k=100",
+							"raw": "{{user_host_url}}/recommend?email=jhasudarshan459@gmail.com&top_k=100",
 							"host": [
-								"{{host_url}}"
+								"{{user_host_url}}"
 							],
 							"path": [
 								"recommend"
@@ -50,7 +50,7 @@
 							"query": [
 								{
 									"key": "email",
-									"value": "new_user_@example.com"
+									"value": "jhasudarshan459@gmail.com"
 								},
 								{
 									"key": "top_k",
@@ -67,13 +67,13 @@
 			"name": "content",
 			"item": [
 				{
-					"name": "New Request",
+					"name": "metadata-update",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"user_id\": \"67e66082006b3b316b2ed778\",\r\n    \"articles\": [\r\n        {\"id\": \"67dfc49e10fa99e6af80bc96\", \"interaction\": {\"likes\": 1, \"shares\": 1, \"clicks\": 1}},\r\n        {\"id\": \"67dfc4ac10fa99e6af80bc97\", \"interaction\": {\"likes\": 0, \"shares\": 0, \"clicks\": 1}},\r\n        {\"id\": \"67dfeec1cdf203cfb791ca98\", \"interaction\": {\"likes\": 0, \"shares\": 0, \"clicks\": 1}}\r\n    ]\r\n}",
+							"raw": "{\r\n    \"email\": \"jhasudarshan459@gmail.com\",\r\n    \"articles\": [\r\n        {\"id\": \"67d98d10b34c50797453aa59\", \"interaction\": {\"likes\": 1, \"shares\": 1, \"clicks\": 1}},\r\n        {\"id\": \"67d98d2cb34c50797453aa5a\", \"interaction\": {\"likes\": 1, \"shares\": 1, \"clicks\": 1}},\r\n        {\"id\": \"67d98d73b34c50797453aa5d\", \"interaction\": {\"likes\": 1, \"shares\": 1, \"clicks\": 1}},\r\n        {\"id\": \"67d98d86b34c50797453aa5e\", \"interaction\": {\"likes\": 1, \"shares\": 1, \"clicks\": 1}}\r\n    ]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -81,9 +81,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{host_url}}/feedback/process_metadata_update",
+							"raw": "{{content_host_url}}/feedback/process_metadata_update",
 							"host": [
-								"{{host_url}}"
+								"{{content_host_url}}"
 							],
 							"path": [
 								"feedback",
@@ -94,13 +94,229 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "signup",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"jha_sud\",\r\n    \"email\": \"jhasudarshan459@gmail.com\",\r\n    \"password\": \"password\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{user_host_url}}/auth/signup",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"signup"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "jha_user",
+									"disabled": true
+								},
+								{
+									"key": "email",
+									"value": "jha.microbit1@gmail.com",
+									"disabled": true
+								},
+								{
+									"key": "password",
+									"value": "password",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{user_host_url}}/auth/logout",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"jha.microbit1@gmail.com\",\r\n    \"password\": \"password\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{user_host_url}}/auth/login?email=jhasudarshan459@gmail.com&password=password",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "jhasudarshan459@gmail.com"
+								},
+								{
+									"key": "password",
+									"value": "password"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "logout",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"jha.microbit1@gmail.com\",\r\n    \"password\": \"password\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{user_host_url}}/auth/logout",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-profile(me)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{user_host_url}}/auth/me",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify-otp",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{user_host_url}}/auth/verify-otp?email=jhasudarshan459@gmail.com&otp=878968",
+							"host": [
+								"{{user_host_url}}"
+							],
+							"path": [
+								"auth",
+								"verify-otp"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "jhasudarshan459@gmail.com"
+								},
+								{
+									"key": "otp",
+									"value": "878968"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
 		}
 	],
 	"variable": [
 		{
-			"key": "host_url",
+			"key": "user_host_url",
 			"value": "http://34.58.230.234:8001",
 			"type": "default"
+		},
+		{
+			"key": "content_host_url",
+			"value": "http://34.58.230.234:8002",
+			"type": "string"
 		}
 	]
 }

@@ -59,12 +59,12 @@ class EmailUtils:
             otp_request_count_key = f"otp_requests:{email}"
             last_request_key = f"otp_last_request:{email}"
 
-            request_count = redis_cache.get_value(otp_request_count_key).get("data")
+            request_count = redis_cache.get_value(otp_request_count_key or {})
             if request_count and int(request_count) >= OTP_REQUEST_LIMIT:
                 logger.warning(f"OTP request limit exceeded for {email}")
                 return False
 
-            last_request = redis_cache.get_value(last_request_key)
+            last_request = redis_cache.get_value(last_request_key or {})
             if last_request:
                 logger.warning(f"OTP cooldown active for {email}")
                 return False
@@ -154,8 +154,8 @@ class EmailUtils:
                     # )
                     access_token = security_utils.create_access_token(data={"sub": email})
                     refresh_token = security_utils.create_refresh_token(data={"sub": email})
-                    response = JSONResponse(content={"message": "OTP verified successfully"})
                     
+                    response = JSONResponse(content={"message": "OTP verified successfully"}, status_code=200)
                     security_utils._set_auth_cookies(response, access_token, refresh_token)
                     return response
             
