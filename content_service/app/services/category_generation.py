@@ -14,29 +14,56 @@ from app.event.kafka_service import content_kafka_service
 
 class ContentClassifier:
     def __init__(self, model_name: str, classification_type: str, confidence_threshold: float = 0.7):
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
         # Dynamic Quantization for CPU optimization
-        quantized_model = torch.quantization.quantize_dynamic(
+        self.model = torch.quantization.quantize_dynamic(
             model, {torch.nn.Linear}, dtype=torch.qint8
         )
-
-        self.classifier = pipeline(
-            classification_type,
-            model=quantized_model,
-            tokenizer=tokenizer,
-            device=-1
-        )
-
+    
+        self.model.eval()  # VERY IMPORTANT
         self.confidence_threshold = confidence_threshold
+
         self.categories = [
             "Gaming", "Finance", "Business", "Healthcare", "Science", "Education", "Psychology",
             "Marketing", "Politics", "Entertainment", "Sports", "Travel", "Sustainability", "Technology"
         ]
 
     def classify(self, texts: List[str]) -> List[dict]:
-        return self.classifier(texts,self.categories, multi_label=True)
+        inputs = self.tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+
+        logits = outputs.logits
+        probs = torch.sigmoid(logits)  # multi-label scenario
+
+        results = []
+        for prob in probs:
+            scores = prob.tolist()
+            
+            # Get all labels with their scores
+            label_score_pairs = sorted(
+                zip(self.categories, scores), 
+                key=lambda x: x[1], 
+                reverse=True
+            )
+
+            labels = [label for label, score in label_score_pairs if score >= self.confidence_threshold]
+
+
+            if not labels:
+                labels.append(label_score_pairs[0][0])
+
+            result = {
+                "labels": [label for label, _ in label_score_pairs],
+                "scores": [score for _, score in label_score_pairs]
+            }
+
+            results.append(result)
+
+        return results
 
 class ClassifyWorker:
     def __init__(self, content_collection, classifier: ContentClassifier):
@@ -65,15 +92,17 @@ class ClassifyWorker:
         threading.Thread(target=self.classify_and_update, args=(buffer_copy,), daemon=True).start()
 
     def classify_and_update(self, buffer):
+        if not buffer:
+            logger.info("Empty buffer received, skipping classify_and_update.")
+            return
+
         try:
             start_time = time.perf_counter()
-
             logger.info(f"Starting classify_and_update for {len(buffer)} items")
+            
             texts = [f"{item['title']}. {item['desc']}" for item in buffer]
             batch_size = 8
-            
             batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-            logger.info(f"Submitting {len(batches)} batches to thread pool")
             
             results = []
             futures = [self.executor.submit(self.classifier.classify, batch) for batch in batches]
@@ -86,21 +115,17 @@ class ClassifyWorker:
             batch_updates = []
 
             for item, result in zip(buffer, results):
-                top_label = result["labels"][0]
-
-                tags = [
-                    label for label, score in zip(result["labels"][1:], result["scores"][1:])
-                    if score >= self.classifier.confidence_threshold
-                ]
+                category = result["labels"][0]
+                tags = result["labels"][1:]
 
                 operations.append(UpdateOne(
                     {"_id": ObjectId(item["id"])},
-                    {"$set": {"category": top_label, "tags": tags}}
+                    {"$set": {"category": category, "tags": tags}}
                 ))
 
                 batch_updates.append({
                     "id": str(item["id"]),
-                    "category": top_label,
+                    "category": category,
                     "tags": tags
                 })
 
