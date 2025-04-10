@@ -1,51 +1,40 @@
 import threading
+from pymongo.errors import DuplicateKeyError
 from datetime import datetime, timezone
-from app.services.category_generation import classifier
 from app.db.mongo import mongo_db
 from app.config.logger_config import logger
 from app.event.kafka_producer import KafkaEventProducer
-from app.config.config import KAFKA_EMBEDDING_UPDATE_TOPIC
+from app.config.config import CONTENT_CLASSIFY_TOPIC
 
 class ContentService:
     def __init__(self):
         self.content_collection = mongo_db.get_collection("content")
-        self.classifier = classifier
-        self.processed_articles = {}
-        self.lock = threading.Lock()
         self.embedding_update_producer = KafkaEventProducer()
 
     def process_content(self, content_data: dict):
-        category, tags = self.classifier.classify(content_data["title"], content_data["description"], content_data.get("body", ""))
-
-        content_data["category"] = content_data.get("category", category)
-        content_data["tags"] = tags
-
         content_entry = {
             "title": content_data["title"],
             "description": content_data["description"],
-            "category": content_data["category"],
-            "tags": content_data["tags"],
             "url": content_data["url"],
             "image_link": content_data["image_link"],
             "interactionMetrics": {"likes": 0, "shares": 0, "clicks": 0},
             "created_at": datetime.now(timezone.utc)
         }
         
-        existing_entry = self.content_collection.find_one({"url": content_entry["url"]})
-        if existing_entry:
+        try:
+            inserted = self.content_collection.insert_one(content_entry)
+            content_id = str(inserted.inserted_id)
+        except DuplicateKeyError:
+            existing_entry = self.content_collection.find_one({"url": content_entry["url"]}, {"_id": 1})
             content_id = str(existing_entry["_id"])
-        else:
-            inserted_content = self.content_collection.insert_one(content_entry)
-            content_id = str(inserted_content.inserted_id)
-        
+
         logger.info(f"Content processed and stored successfully: {content_id}")
-        self.embedding_update_producer.send(KAFKA_EMBEDDING_UPDATE_TOPIC,
-        {
-            "filtered_articles": [{
-                "id": content_id,
-                "category": content_data["category"],
-                "tags": content_data["tags"]
-            }]
+        self.embedding_update_producer.send(CONTENT_CLASSIFY_TOPIC,
+         {
+            "id": content_id,
+            "title": content_data["title"],
+            "desc": content_data["description"],
+            "body": content_data.get("body", "")
         })
         return {"message": "Content added successfully!", "content_id": content_id}
 

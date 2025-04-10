@@ -16,6 +16,9 @@ class MongoDB:
             self.db = self.client[DB_NAME]
             self.client.admin.command("ping")
             logger.info(f"Connected to MongoDB: {DB_NAME}")
+            
+            self.db["content"].create_index("url", unique=True)
+            logger.info("Ensured Unique Index on url field for content collection")
         except ServerSelectionTimeoutError as e:
             logger.error(f"MongoDB Connection Timeout: {e}")
             self.client = None

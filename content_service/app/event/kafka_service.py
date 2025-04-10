@@ -68,7 +68,6 @@ class ContentServiceKafkaHandler:
 
     def trigger_batch_embedding_update(self, batch_updates):
         event_data = {"filtered_articles": batch_updates}
-        print("trigeered embedding update happen")
         self.embedding_update_producer.send(KAFKA_EMBEDDING_UPDATE_TOPIC,event_data)
         logger.info(f"Triggered embedding update for {len(batch_updates)} articles.")
         

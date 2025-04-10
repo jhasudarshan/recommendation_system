@@ -13,7 +13,8 @@ CLASSIFICATION = os.getenv("CLASSIFICATION")
 API_KEY = os.getenv("API_KEY")
 FETCH_API_URL = os.getenv("FETCH_API_URL")
 PROCESS_API_URL = os.getenv("PROCESS_API_URL")
-
+CONTENT_CLASSIFY_TOPIC = os.getenv("CONTENT_CLASSIFY_TOPIC")
+CONTENT_CLASSIFY_GROUP = os.getenv("CONTENT_CLASSIFY_GROUP")
 if not MONGO_URI:
     raise ValueError("MONGO_URI is not set in environment variables!")
 

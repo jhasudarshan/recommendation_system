@@ -2,7 +2,7 @@ from datetime import datetime, timedelta,timezone
 from typing import Dict, Any
 import jwt
 from passlib.context import CryptContext
-from app.config.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.config.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
 from fastapi import Response
 from app.config.logger_config import logger
 
@@ -29,7 +29,7 @@ class SecurityUtils:
     def create_refresh_token(self, data: Dict[str, Any]) -> str:
         try:
             to_encode = data.copy()
-            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_DAYS)
             to_encode.update({"exp": expire})
             return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         except Exception as e:
