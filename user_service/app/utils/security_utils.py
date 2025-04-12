@@ -24,17 +24,17 @@ class SecurityUtils:
             return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         except Exception as e:
             logger.error(f"Error creating access token: {e}")
-            raise
+            return 
     
     def create_refresh_token(self, data: Dict[str, Any]) -> str:
         try:
             to_encode = data.copy()
-            expire = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_DAYS)
+            expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
             to_encode.update({"exp": expire})
             return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         except Exception as e:
             logger.error(f"Error creating refresh token: {e}")
-            raise
+            return 
     
     def decode_access_token(self, token: str) -> Dict[str, Any] | None:
         try:
@@ -83,6 +83,7 @@ class SecurityUtils:
             logger.info("Cookies Set: ", response.headers)
         except Exception as e:
             logger.error(f"Error setting auth cookies: {e}")
+            return 
     
     def _clear_auth_cookies(self, response: Response):
         try:
@@ -90,5 +91,6 @@ class SecurityUtils:
             response.delete_cookie("refresh_token")
         except Exception as e:
             logger.error(f"Error clearing auth cookies: {e}")
+            return 
         
 security_utils = SecurityUtils()

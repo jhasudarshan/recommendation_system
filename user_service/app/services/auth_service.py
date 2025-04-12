@@ -1,4 +1,3 @@
-import uuid
 from fastapi import HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime,timezone
@@ -6,6 +5,7 @@ from app.db.mongo import mongo_db
 from app.db.redis_cache import redis_cache
 from app.utils.security_utils import security_utils
 from app.utils.email_utils import email_utils
+from app.config.logger_config import logger
 
 class AuthService:
     _instance = None
@@ -53,19 +53,6 @@ class AuthService:
         access_token = security_utils.create_access_token(data={"sub": user["email"]})
         refresh_token = security_utils.create_refresh_token(data={"sub": user["email"]})
 
-        # session_id = str(uuid.uuid4())
-        # session_data = {
-        #     "session_id": session_id,
-        #     "last_login": datetime.now(timezone.utc),
-        #     "active": True,
-        # }
-
-        # self.session_collection.update_one(
-        #     {"email": email},
-        #     {"$push": {"sessions": session_data}},
-        #     upsert=True
-        # )
-
         response = JSONResponse(content={"message": "Login successful"})
         security_utils._set_auth_cookies(response,access_token,refresh_token)
         return response
@@ -107,44 +94,47 @@ class AuthService:
         redis_interest_key = f"user:{email}:interest"
         
         cached_user = (self.redis_cache.get_cache(redis_key)or {}).get("data")
-        if cached_user:
-            self.redis_cache.set_cache(redis_key, 21600)
-            self.redis_cache.set_cache(redis_interest_key, 3600)
-        else:
-            user = self.user_collection.find_one({"email": email}, {"_id": 0,"hashed_password": 0})
+        # if cached_user:
+        #     self.redis_cache.set_cache(redis_key, 3600)
+        #     user_interest = self.redis_cache.get_cache(redis_interest_key)
+        #     if isinstance(user_interest, list):
+        #         self.redis_cache.set_cache(redis_interest_key, user_interest, expiry=3600)
+        #     else:
+        #         user = self.user_collection.find_one({"email": email}, {"_id": 1,"hashed_password": 0})
+        #         user_interest = user.get("interests")
+        #         if user_interest:
+        #             redis_cache.set_cache(redis_interest_key, user_interest, expiry=3600)
+        
+        if not cached_user:
+            user = self.user_collection.find_one({"email": email}, {"_id": 1,"hashed_password": 0})
             if not user:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
             cached_user = {
+                "userId": str(user["_id"]),
                 "username": user['username'],
                 "email": user['email']
             }
+            
             self.redis_cache.set_cache(redis_key, cached_user, expiry=21600)
             user_interest = user.get("interests")
             if user_interest:
-                redis_cache.set_cache(redis_interest_key, user_interest, expiry=21600)
+                redis_cache.set_cache(redis_interest_key, user_interest, expiry=3600)
             
-        response = JSONResponse(content={"message": "User authenticated", "user": user})
+        response = JSONResponse(content={"message": "User authenticated", "user": cached_user})
         return response
 
     def logout(self, request: Request, response: Response) -> JSONResponse:
         refresh_token = request.cookies.get("refresh_token")
+        logger.info(f"[Logout] Received refresh token: {refresh_token}")
 
         if refresh_token:
             payload = security_utils.decode_refresh_token(refresh_token)
+            logger.info(f"[Logout] Decoded payload: {payload}")
             if payload:
                 email = payload.get("sub")
+                logger.info(f"[Logout] Removing user {email} from Redis cache")
                 self.redis_cache.remove_user_from_cache(email)
-        #     #     session_id = self.session_collection.find_one({"email": email}, {"sessions.session_id": 1}).get("session_id")
-
-        #     #     self.session_collection.update_one(
-        #     #         {"email": email, "sessions.session_id": session_id},
-        #     #         {"$set": {
-        #     #             "sessions.$.active": False,
-        #     #             "sessions.$.last_logout": datetime.now(timezone.utc),
-        #     #             "sessions.$.rotated": True
-        #     #         }}
-        #     #     )
 
         response = JSONResponse(content={"message": "Logout successful"}, status_code=status.HTTP_200_OK)
         security_utils._clear_auth_cookies(response)

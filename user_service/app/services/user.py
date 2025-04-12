@@ -40,12 +40,10 @@ class UserInterestService:
             user_interests = cached_interest
         else:
             user_data = self.user_collection.find_one({"email": email}, {"interests": 1})
-            if not user_data or "interests" not in user_data:
-                raise HTTPException(status_code=404, detail="User not found or has no interests")
-
-            user_interests = user_data["interests"]
-            
-        self.redis_cache.set_cache(redis_interest_key, user_interests, expiry=3600)
+            if not user_data:
+                raise HTTPException(status_code=404, detail="User not found")
+            user_interests = user_data.get("interests", [])
+            self.redis_cache.set_cache(redis_interest_key, user_interests, expiry=3600)
         
         category_embeddings = self.category_embedding_service.get_all_embeddings()
         if not category_embeddings:
@@ -53,6 +51,13 @@ class UserInterestService:
 
         embedding_dim = len(next(iter(category_embeddings.values())))
         final_embedding = np.zeros(embedding_dim)
+
+        if not user_interests:
+            num_categories = len(category_embeddings)
+            for emb in category_embeddings.values():
+                final_embedding += np.array(emb)
+            final_embedding /= num_categories
+            return final_embedding.tolist()
 
         for interest in user_interests:
             category = interest["topic"]
@@ -70,10 +75,6 @@ class UserInterestService:
             if not email or not new_interest:
                 logger.info("Invalid event data: Missing userId or userInterest.")
                 raise ValueError("Invalid event data")
-            redis_key = f"user:{email}"
-            cached_user = (self.redis_cache.get_cache(redis_key)or {}).get("data")
-            if not cached_user:
-                raise ValueError("Credentials are not valid for update at this time.")
                 
             redis_interest_key = f"user:{email}:interest"
             
@@ -121,5 +122,14 @@ class UserInterestService:
 
         except Exception as e:
             logger.error(f"Error processing interest update: {e}", exc_info=True)
+    
+    def get_user_id(self,email: str):
+        redis_key = f"user:{email}"
+        cached_user = (self.redis_cache.get_cache(redis_key)or {}).get("data")
+        
+        if cached_user:
+            return cached_user["userId"]
+        
+        raise HTTPException(status_code=401, detail="User not Authorized")
     
 user_service = UserInterestService()

@@ -3,10 +3,9 @@ import random
 import string
 import socket
 import hashlib
-from datetime import datetime,timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from fastapi import HTTPException
+from fastapi import HTTPException,Response
 from fastapi.responses import JSONResponse
 from app.config.config import (
     SMTP_SERVER, SMTP_PORT, SENDER_EMAIL, SENDER_PASSWORD,
@@ -16,8 +15,6 @@ from app.config.logger_config import logger
 from app.db.redis_cache import redis_cache
 from app.utils.security_utils import security_utils
 from app.db.mongo import mongo_db
-from fastapi import Response
-
 
 class EmailUtils:
     _instance = None
@@ -138,20 +135,9 @@ class EmailUtils:
                 if stored_otp_hashed and stored_otp_hashed == self._hash_otp(otp):
                     redis_cache.delete_key(f"email_otp:{email}")
                     logger.info(f"OTP verified successfully for {email}")
-                    
-                    self.user_collection.update_one({"email": email}, {"$set": {"verified": True}})
-                    # session_id = str(uuid.uuid4())
-                    # session_data = {
-                    #     "session_id": session_id,
-                    #     "last_login": datetime.now(timezone.utc),
-                    #     "active": True,
-                    # }
 
-                    # self.session_collection.update_one(
-                    #     {"email": email},
-                    #     {"$push": {"sessions": session_data}},
-                    #     upsert=True
-                    # )
+                    self.user_collection.update_one({"email": email}, {"$set": {"verified": True}})
+        
                     access_token = security_utils.create_access_token(data={"sub": email})
                     refresh_token = security_utils.create_refresh_token(data={"sub": email})
                     

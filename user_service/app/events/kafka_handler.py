@@ -5,12 +5,14 @@ from app.events.kafka_consumer import KafkaEventConsumer
 from app.db.qdrant import qdrant_db
 from app.services.generate_embedding import embedding_service
 from app.services.user import user_service
-from app.config.config import KAFKA_EMBEDDING_UPDATE_TOPIC,KAFKA_BALANCE_INTEREST_TOPIC,EMBEDDING_UPDATE,INTEREST_UPDATE_GROUP
+from app.services.recommend_service import recommend_service
+from app.config.config import KAFKA_EMBEDDING_UPDATE_TOPIC,KAFKA_BALANCE_INTEREST_TOPIC,EMBEDDING_UPDATE,INTEREST_UPDATE_GROUP,KAFKA_INTERACTION_UPDATE,INTERACTION_UPDATE_GROUP
 
 class UserServiceKafkaHandler:
     def __init__(self):
         self.embedding_service = embedding_service 
         self.user_service = user_service
+        self.recommend_service = recommend_service
         
         self.embedding_update_consumer = KafkaEventConsumer(
             topic=KAFKA_EMBEDDING_UPDATE_TOPIC,
@@ -21,20 +23,26 @@ class UserServiceKafkaHandler:
             topic=KAFKA_BALANCE_INTEREST_TOPIC,
             group_id=INTEREST_UPDATE_GROUP
         )
+        
+        self.interaction_update_consumer = KafkaEventConsumer(
+            topic= KAFKA_INTERACTION_UPDATE,
+            group_id = INTERACTION_UPDATE_GROUP
+        )
 
     def start_listeners(self):
-        logger.info("Starting Kafka listener for embedding_update_required")
-        listener_thread1 = threading.Thread(target=self.embedding_listener, daemon=True)
-        listener_thread1.start()
+        logger.info("Starting Kafka listeners")
+        threading.Thread(target=self.embedding_listener, daemon=True).start()
+        threading.Thread(target=self.interest_balance_listener, daemon=True).start()
+        threading.Thread(target=self.process_interaction_update, daemon=True).start()
         
-        listener_thread2 = threading.Thread(target=self.interest_balance_listener,daemon=True)
-        listener_thread2.start()
-
     def embedding_listener(self):
         self.embedding_update_consumer.listen(self.process_embedding_update)
     
     def interest_balance_listener(self):
         self.interest_update_consumer.listen(self.user_service.process_interest_update)
+        
+    def process_interaction_update(self):
+        self.interaction_update_consumer.listen(self.recommend_service.process_user_interaction_update)
         
     def process_embedding_update(self, event):
         try:
@@ -46,7 +54,6 @@ class UserServiceKafkaHandler:
             logger.info(f"Processing embedding update for {len(filtered_articles)} articles.")
 
             new_articles = []
-            current_ids = set()
 
             for article in filtered_articles:
                 article_id = str(article.get("id"))
@@ -55,12 +62,11 @@ class UserServiceKafkaHandler:
                     continue  
 
                 try:
+                    mongo_id = str(article_id)
                     qdrant_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, article_id))
                 except ValueError:
                     logger.error(f"Invalid article_id format: {article_id}")
-                    continue  
-
-                current_ids.add(qdrant_id)
+                    continue
 
                 category_embedding = self.embedding_service.get_embedding(article.get("category", ""))
                 if category_embedding is None:
@@ -87,7 +93,7 @@ class UserServiceKafkaHandler:
                     interaction.get("clicks", 0) * 0.3
                 )
                 updated_embedding = [e + interaction_factor for e in updated_embedding]
-                new_articles.append({"id": qdrant_id, "vector": updated_embedding})
+                new_articles.append({"id": qdrant_id, "vector": updated_embedding,"mongo_id": mongo_id})
 
             if new_articles:
                 qdrant_db.upsert_vectors("content_embeddings", new_articles)

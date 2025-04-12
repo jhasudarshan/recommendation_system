@@ -35,7 +35,7 @@ class QdrantDB:
             return
         
         points = [
-            models.PointStruct(id=vec["id"], vector=vec["vector"], payload={"id": vec["id"]})
+            models.PointStruct(id=vec["id"], vector=vec["vector"], payload={"mongo_id": vec["mongo_id"]})
             for vec in vectors
         ]
 

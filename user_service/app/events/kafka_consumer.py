@@ -45,7 +45,7 @@ class KafkaEventConsumer:
                         logging.warning(f"Skipping empty or invalid message from {message.topic}")
                         continue
                     logging.info(f"Message received from '{message.topic}': {message.value}")
-                    callback(message.value)
+                    callback(data)
                 consumer.commit()
             except Exception as e:
                 logging.error(f"Kafka Consumer Error: {e}")
