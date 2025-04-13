@@ -15,6 +15,8 @@ FETCH_API_URL = os.getenv("FETCH_API_URL")
 PROCESS_API_URL = os.getenv("PROCESS_API_URL")
 CONTENT_CLASSIFY_TOPIC = os.getenv("CONTENT_CLASSIFY_TOPIC")
 CONTENT_CLASSIFY_GROUP = os.getenv("CONTENT_CLASSIFY_GROUP")
+KAFKA_INTERACTION_UPDATE = os.getenv("KAFKA_INTERACTION_UPDATE")
+
 if not MONGO_URI:
     raise ValueError("MONGO_URI is not set in environment variables!")
 

@@ -16,8 +16,10 @@ class ContentService:
             "title": content_data["title"],
             "description": content_data["description"],
             "url": content_data["url"],
+            "source": content_data["source"],
             "image_link": content_data["image_link"],
             "interactionMetrics": {"likes": 0, "shares": 0, "clicks": 0},
+            "published_at": content_data["published_at"],
             "created_at": datetime.now(timezone.utc)
         }
         

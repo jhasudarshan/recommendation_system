@@ -4,7 +4,7 @@ from app.config.logger_config import logger
 from app.event.kafka_producer import kafka_event_producer
 from app.services.content_serve import content_service
 from collections import defaultdict
-from app.config.config import KAFKA_BALANCE_INTEREST_TOPIC,KAFKA_EMBEDDING_UPDATE_TOPIC
+from app.config.config import KAFKA_BALANCE_INTEREST_TOPIC,KAFKA_EMBEDDING_UPDATE_TOPIC,KAFKA_INTERACTION_UPDATE
 
 class ContentServiceKafkaHandler:
     def __init__(self):
@@ -19,6 +19,7 @@ class ContentServiceKafkaHandler:
             return
         
         logger.info("batch computing checking: ")
+        
         pipeline = [
             {"$match": {"_id": {"$in": article_ids}}},
             {"$project": {
@@ -75,12 +76,10 @@ class ContentServiceKafkaHandler:
         category_weights = defaultdict(float)
         category_counts = defaultdict(int)
         
-        # Accumulate weights and counts
         for article in articles:
             category = article.get("category", "Unknown")
             tags = article.get("tags", [])
             
-            # Assign weights (category gets a higher weight, tags get lower weight)
             category_weights[category] += 0.6
             category_counts[category] += 1
             
@@ -88,7 +87,6 @@ class ContentServiceKafkaHandler:
                 category_weights[tag] += 0.4
                 category_counts[tag] += 1
         
-        # Normalize weights based on category counts
         for topic in category_weights:
             if category_counts[topic] > 0:
                 category_weights[topic] /= category_counts[topic]
